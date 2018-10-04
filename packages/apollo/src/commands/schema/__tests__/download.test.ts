@@ -42,7 +42,6 @@ jest.setTimeout(25000);
 
 describe("successful schema downloading", () => {
   test
-    .only()
     .nock("http://localhost:4000", localSuccess)
     .command(["schema:download", "--endpoint=http://localhost:4000/graphql"])
     .it("grabs schema JSON from local server", () => {
