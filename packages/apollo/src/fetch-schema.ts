@@ -5,11 +5,10 @@ import { createHttpLink, HttpLink } from "apollo-link-http";
 import {
   buildSchema,
   GraphQLSchema,
-  introspectionQuery,
+  getIntrospectionQuery,
   Source,
   ExecutionResult,
-  parse,
-  execute as graphqlExecute,
+  graphql,
   IntrospectionSchema
 } from "graphql";
 import gql from "graphql-tag";
@@ -21,15 +20,15 @@ import { EndpointConfig } from "./config";
 import { engineLink, getIdFromKey } from "./engine";
 import { SCHEMA_QUERY } from "./operations/schema";
 
-const introspection = gql(introspectionQuery);
+const introspection = gql(getIntrospectionQuery());
 
 async function buildIntrospectionSchemaInLocalGraphQLContext(
   source: string | Source
 ): Promise<IntrospectionSchema> {
   const schema: GraphQLSchema = buildSchema(source);
-  const executionResult: ExecutionResult = await graphqlExecute(
+  const executionResult: ExecutionResult = await graphql(
     schema,
-    parse(source)
+    getIntrospectionQuery()
   );
 
   if (executionResult.errors) {
@@ -44,9 +43,7 @@ async function buildIntrospectionSchemaInLocalGraphQLContext(
   return executionResult.data.__schema;
 }
 
-async function fromFile(
-  file: string
-): Promise<IntrospectionSchema | undefined> {
+function fromFile(file: string): Promise<IntrospectionSchema | undefined> {
   try {
     const result = fs.readFileSync(file, {
       encoding: "utf-8"
@@ -72,12 +69,12 @@ async function fromFile(
     }
 
     if (ext === ".ts" || ext === ".tsx" || ext === ".js" || ext === ".jsx") {
-      return await buildIntrospectionSchemaInLocalGraphQLContext(
+      return buildIntrospectionSchemaInLocalGraphQLContext(
         extractDocumentFromJavascript(result)!
       );
     }
 
-    return undefined;
+    return Promise.resolve(undefined);
   } catch (e) {
     throw new Error(`Unable to read file ${file}. ${e.message}`);
   }

@@ -3,10 +3,10 @@ import { table, styledJSON } from "heroku-cli-util";
 import * as Listr from "listr";
 import { toPromise, execute } from "apollo-link";
 import {
-  GraphQLError,
-  parse,
-  introspectionQuery,
-  execute as graphql
+  GraphQLError
+  // parse,
+  // introspectionQuery,
+  // execute as graphql,
 } from "graphql";
 
 import { UPLOAD_SCHEMA } from "../../operations/uploadSchema";
@@ -83,9 +83,9 @@ export default class SchemaPublish extends Command {
             ctx.currentSchema.engineKey
           )} to Apollo Engine`;
           const gitContext = await gitInfo();
+          console.log(ctx.schema);
           const variables = {
-            schema: (await graphql(ctx.schema, parse(introspectionQuery))).data!
-              .__schema,
+            schema: ctx.schema,
             tag,
             gitContext,
             id: getIdFromKey(ctx.currentSchema.engineKey)
