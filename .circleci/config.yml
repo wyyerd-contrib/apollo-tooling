@@ -117,6 +117,8 @@ workflows:
           <<: *ignore_doc_branches
       - Node.js 10:
           <<: *ignore_doc_branches
+      - VSCode:
+          <<: *ignore_doc_branches
       - Linting:
           <<: *ignore_doc_branches
       - Query Check:
