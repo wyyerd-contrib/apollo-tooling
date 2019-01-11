@@ -50,7 +50,7 @@ jobs:
     <<: *common_test_steps
 
   VSCode:
-    docker: [{ image: "buildpack-deps/xenial" }]
+    docker: [{ image: "buildpack-deps:xenial" }]
     steps:
       - *run_install_desired_npm
       - checkout
