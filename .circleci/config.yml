@@ -74,6 +74,7 @@ jobs:
             # npm ci actually removes node_modules before installing to guarantee a clean slate.
             - ~/.npm
       # - run: mkdir /tmp/.X11-unix; sudo chmod 1777 /tmp/.X11-unix; sudo chown root /tmp/.X11-unix/; Xvfb :0 & export DISPLAY=:0
+      - run: pwd
       - run: npm run build
       - run: npm run test:vscode
 

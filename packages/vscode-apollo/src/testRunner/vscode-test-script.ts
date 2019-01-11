@@ -4,12 +4,12 @@ import { spawnSync } from "child_process";
 console.log("Starting test runner:");
 try {
   spawnSync(
-    `node ${resolve(__dirname, "..", "..")}/node_modules/vscode/bin/test`,
+    `node ${resolve(process.cwd(), "..", "..")}/node_modules/vscode/bin/test`,
     {
       stdio: "inherit",
       shell: true,
       env: {
-        CODE_TESTS_PATH: `${__dirname}/lib/testRunner`,
+        CODE_TESTS_PATH: `${process.cwd()}/lib/testRunner`,
         // Note:
         // Extensions that boot up and throw warnings on the host machine will cause tests to fail,
         // so running with --disable-extensions is a must. This env variable in particular is open
