@@ -9,6 +9,9 @@ run_install_desired_npm: &run_install_desired_npm
   run:
     name: Install npm@6.
     command: sudo npm install -g npm@6
+  run:
+    name: Install missing vscode deps
+    command: sudo apt-get install libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils
 
 # These are the steps used for each version of Node which we're testing
 # against.  Thanks to YAMLs inability to merge arrays (though it is able
