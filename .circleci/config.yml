@@ -52,7 +52,7 @@ jobs:
   VSCode:
     docker: [{ image: "buildpack-deps:xenial" }]
     steps:
-      - run: apt update; apt install sudo; sudo apt install nodejs npm -y; ln -s /usr/bin/nodejs /usr/bin/node;
+      - run: apt update; apt install sudo; sudo apt install nodejs npm -y; ln -s /usr/bin/nodejs /usr/bin/node; npm install -g npm@6;
       - checkout
       - restore_cache:
           keys:
