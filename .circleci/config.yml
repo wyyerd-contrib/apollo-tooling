@@ -56,7 +56,6 @@ jobs:
       - run: apt-get install sudo
       - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
       - run: sudo apt-get install nodejs -y
-      - run: ln -s /usr/bin/nodejs /usr/bin/node;
       - *run_install_desired_npm
       - checkout
       - restore_cache:
