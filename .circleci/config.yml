@@ -74,6 +74,7 @@ jobs:
             - ~/.npm
       # - run: sudo apt-get install libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils
       # - run: mkdir /tmp/.X11-unix; sudo chmod 1777 /tmp/.X11-unix; sudo chown root /tmp/.X11-unix/; Xvfb :0 & export DISPLAY=:0
+      - run: npm run build
       - run: npm run test:vscode
 
   # Other tests, unrelated to typical code tests.
