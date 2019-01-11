@@ -1,6 +1,7 @@
 import { resolve } from "path";
 import { spawnSync } from "child_process";
 
+console.log("Starting test runner:");
 try {
   spawnSync(
     `node ${resolve(process.cwd(), "..", "..")}/node_modules/vscode/bin/test`,
@@ -24,3 +25,5 @@ try {
 
   throw error;
 }
+
+console.log("Test runner finished");
