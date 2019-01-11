@@ -9,9 +9,6 @@ run_install_desired_npm: &run_install_desired_npm
   run:
     name: Install npm@6.
     command: sudo npm install -g npm@6
-  run:
-    name: Install missing vscode deps
-    command: sudo apt-get install libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils
 
 # These are the steps used for each version of Node which we're testing
 # against.  Thanks to YAMLs inability to merge arrays (though it is able
@@ -51,6 +48,29 @@ jobs:
   Node.js 10:
     docker: [{ image: "circleci/node:10" }]
     <<: *common_test_steps
+
+  VSCode:
+    docker: [{ image: "circleci/node:10" }]
+    steps:
+      - *run_install_desired_npm
+      - checkout
+      - restore_cache:
+          keys:
+            # When lock file changes, use increasingly general patterns to restore cache
+            - npm-v1-{{ .Branch }}-{{ checksum "package-lock.json" }}
+            - npm-v1-{{ .Branch }}-
+            - npm-v1-
+      - run: npm --version
+      - run: npm ci
+      - save_cache:
+          key: npm-v1-{{ .Branch }}-{{ checksum "package-lock.json" }}
+          paths:
+            # This should cache the npm cache instead of node_modules, which is needed because
+            # npm ci actually removes node_modules before installing to guarantee a clean slate.
+            - ~/.npm
+      - run: sudo apt-get install libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils
+      - run: Xvfb :0 & export DISPLAY=:0
+      - run: npm run test:vscode
 
   # Other tests, unrelated to typical code tests.
   Linting:

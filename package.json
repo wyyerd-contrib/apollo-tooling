@@ -23,7 +23,7 @@
     "test:ci": "npm run test -- --ci --maxWorkers=2",
     "test:vscode": "lerna run test --scope=vscode-apollo",
     "test:debug": "DEBUG=* node --inspect-brk=9001 node_modules/.bin/jest --runInBand",
-    "circle": "npm run test:ci; npm run test:vscode",
+    "circle": "npm run test:ci",
     "postcircle": "npm run lint",
     "lint": "prettier --list-different \"packages/*/src/**/*.{js,jsx,ts,tsx}\"",
     "lint-fix": "prettier --write \"packages/*/src/**/*.{js,jsx,ts,tsx}\"",
