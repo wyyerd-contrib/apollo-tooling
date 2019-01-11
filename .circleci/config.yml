@@ -56,7 +56,7 @@ jobs:
       - run: apt-get install sudo
       - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
       - run: sudo apt-get install nodejs -y
-      - run: sudo apt-get install libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils
+      - run: sudo apt-get install -y libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils
       - *run_install_desired_npm
       - checkout
       - restore_cache:
