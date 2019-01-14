@@ -20,9 +20,7 @@
     "update-vscode": "node ../../node_modules/vscode/bin/install",
     "create-server-symlink": "ln -s ../../apollo-language-server ./node_modules/",
     "package-extension": "rm -rf node_modules && yarn install --force --production --ignore-scripts && ../../node_modules/vsce/out/vsce package --yarn --baseContentUrl https://raw.githubusercontent.com/apollographql/apollo-tooling/master/packages/vscode-apollo && git clean -dfqX -- ./node_modules ./yarn.lock && npm run create-server-symlink",
-    "test": "node ./lib/testRunner/vscode-test-script.js",
-    "test:inspect": "node inspect ./lib/testRunner/vscode-test-script.js",
-    "test:debug": "node --inspect-brk=9001 ./lib/testRunner/vscode-test-script.js"
+    "test": "node ./lib/testRunner/vscode-test-script.js"
   },
   "engines": {
     "vscode": "^1.28.0"
