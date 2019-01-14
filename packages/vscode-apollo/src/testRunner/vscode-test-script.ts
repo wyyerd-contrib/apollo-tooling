@@ -3,7 +3,15 @@ import { spawnSync } from "child_process";
 
 console.log("Starting test runner:");
 const buf = spawnSync(
-  `node ${resolve(process.cwd(), "..", "..")}/node_modules/vscode/bin/test`,
+  `node ${resolve(
+    process.cwd(),
+    "..",
+    "..",
+    "node_modules",
+    "vscode",
+    "bin",
+    "test"
+  )}`,
   {
     shell: true,
     env: {
