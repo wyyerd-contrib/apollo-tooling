@@ -56,7 +56,9 @@ jobs:
       - run: apt-get install sudo
       - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
       - run: sudo apt-get install nodejs -y
-      - run: sudo apt-get install -y libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils
+      - run: sudo apt-get install -y libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils xvfb
+      - run: sudo apt-get -y install vim # REMOVE ME
+      - run: Xvfb :99 & export DISPLAY=:99
       - *run_install_desired_npm
       - checkout
       - restore_cache:
@@ -73,8 +75,6 @@ jobs:
             # This should cache the npm cache instead of node_modules, which is needed because
             # npm ci actually removes node_modules before installing to guarantee a clean slate.
             - ~/.npm
-      # - run: mkdir /tmp/.X11-unix; sudo chmod 1777 /tmp/.X11-unix; sudo chown root /tmp/.X11-unix/; Xvfb :0 & export DISPLAY=:0
-      - run: pwd
       - run: npm run build
       - run: npm run test:vscode
 
