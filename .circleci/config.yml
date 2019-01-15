@@ -50,16 +50,17 @@ jobs:
     <<: *common_test_steps
 
   VSCode:
-    docker: [{ image: "buildpack-deps:xenial" }]
+    #docker: [{ image: "buildpack-deps:xenial" }]
+    docker: [{ image: "circleci/node:10" }]
     steps:
       - run: apt-get update
       - run: apt-get install sudo
-      - run: curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
-      - run: sudo apt-get install nodejs -y
-      - run: sudo apt-get install -y libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils xvfb
-      - run: sudo apt-get -y install vim # REMOVE ME
-      #- run: curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg; sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/; sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
-      #- run: sudo apt-get install apt-transport-https; sudo apt-get update; sudo apt-get install code;
+      # - run:
+      #     name: Fetch
+      #     curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+      - run:
+          name: Install deps for VSCode / GUI
+          command: sudo apt-get install nodejs libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils xvfb -y
       - *run_install_desired_npm
       - checkout
       - restore_cache:
@@ -78,10 +79,9 @@ jobs:
             - ~/.npm
       - run: npm run build
       - run:
-          name: Running X virtual framebuffer
+          name: Running X virtual framebuffer (false display for headless env)
           command: Xvfb :99
           background: true
-      #- run: export DISPLAY=:99
       - run: DISPLAY=:99 npm run test:vscode
 
   # Other tests, unrelated to typical code tests.
