@@ -59,7 +59,8 @@ jobs:
       - run: sudo apt-get install -y libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils xvfb
       - run: sudo apt-get -y install vim # REMOVE ME
       - run: Xvfb :99 & export DISPLAY=:99
-      - run: sudo apt-get install apt-transport-https; sudo apt-get update; sudo apt-get install code;
+      #- run: curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg; sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/; sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" > /etc/apt/sources.list.d/vscode.list'
+      #- run: sudo apt-get install apt-transport-https; sudo apt-get update; sudo apt-get install code;
       - *run_install_desired_npm
       - checkout
       - restore_cache:
