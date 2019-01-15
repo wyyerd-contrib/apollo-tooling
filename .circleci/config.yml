@@ -53,8 +53,8 @@ jobs:
     #docker: [{ image: "buildpack-deps:xenial" }]
     docker: [{ image: "circleci/node:10" }]
     steps:
-      - run: apt-get update
-      - run: apt-get install sudo
+      - run: sudo apt-get update
+      # - run: apt-get install sudo
       # - run:
       #     name: Fetch
       #     curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
