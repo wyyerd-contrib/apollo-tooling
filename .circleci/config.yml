@@ -77,7 +77,10 @@ jobs:
             # npm ci actually removes node_modules before installing to guarantee a clean slate.
             - ~/.npm
       - run: npm run build
-      - run: Xvfb :99 &
+      - run:
+        name: Running X virtual framebuffer
+        command: Xvfb :99
+        background: true
       - run: export DISPLAY=:99
       - run: npm run test:vscode
 
