@@ -63,20 +63,20 @@ jobs:
           command: sudo apt-get install nodejs libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils xvfb -y
       - *run_install_desired_npm
       - checkout
-      - restore_cache:
-          keys:
-            # When lock file changes, use increasingly general patterns to restore cache
-            - npm-v1-{{ .Branch }}-{{ checksum "package-lock.json" }}
-            - npm-v1-{{ .Branch }}-
-            - npm-v1-
+      # - restore_cache:
+      #     keys:
+      #       # When lock file changes, use increasingly general patterns to restore cache
+      #       - npm-v1-{{ .Branch }}-{{ checksum "package-lock.json" }}
+      #       - npm-v1-{{ .Branch }}-
+      #       - npm-v1-
       - run: npm --version
       - run: npm ci
-      - save_cache:
-          key: npm-v1-{{ .Branch }}-{{ checksum "package-lock.json" }}
-          paths:
-            # This should cache the npm cache instead of node_modules, which is needed because
-            # npm ci actually removes node_modules before installing to guarantee a clean slate.
-            - ~/.npm
+      # - save_cache:
+      #     key: npm-v1-{{ .Branch }}-{{ checksum "package-lock.json" }}
+      #     paths:
+      #       # This should cache the npm cache instead of node_modules, which is needed because
+      #       # npm ci actually removes node_modules before installing to guarantee a clean slate.
+      #       - ~/.npm
       - run: npm run build
       - run:
           name: Running X virtual framebuffer (false display for headless env)
