@@ -81,8 +81,8 @@ jobs:
           name: Running X virtual framebuffer
           command: Xvfb :99
           background: true
-      - run: export DISPLAY=:99
-      - run: npm run test:vscode
+      #- run: export DISPLAY=:99
+      - run: DISPLAY=:99 npm run test:vscode
 
   # Other tests, unrelated to typical code tests.
   Linting:
