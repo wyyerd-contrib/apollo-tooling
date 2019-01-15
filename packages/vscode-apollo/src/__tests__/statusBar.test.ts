@@ -8,4 +8,8 @@ describe("statusBar", () => {
     statusBar.showLoadedState({ hasActiveTextEditor: true });
     expect(statusBar.statusBarItem.text).toEqual(StatusBar.loadedStateText);
   });
+
+  it("fails", () => {
+    expect(1).toEqual(0);
+  });
 });
