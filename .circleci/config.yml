@@ -78,9 +78,9 @@ jobs:
             - ~/.npm
       - run: npm run build
       - run:
-        name: Running X virtual framebuffer
-        command: Xvfb :99
-        background: true
+          name: Running X virtual framebuffer
+          command: Xvfb :99
+          background: true
       - run: export DISPLAY=:99
       - run: npm run test:vscode
 
