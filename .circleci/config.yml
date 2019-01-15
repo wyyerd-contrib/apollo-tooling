@@ -59,6 +59,7 @@ jobs:
       - run: sudo apt-get install -y libgtk3.0 libxss1 libgconf-2-4 libasound2 libnss3 x11-xserver-utils xvfb
       - run: sudo apt-get -y install vim # REMOVE ME
       - run: Xvfb :99 & export DISPLAY=:99
+      - run: sudo apt-get install apt-transport-https; sudo apt-get update; sudo apt-get install code;
       - *run_install_desired_npm
       - checkout
       - restore_cache:
