@@ -2,6 +2,7 @@ import { resolve } from "path";
 import { spawnSync } from "child_process";
 
 console.log("Starting test runner:");
+console.log("DISPLAY: " + process.env.DISPLAY);
 const buf = spawnSync(
   `node ${resolve(
     process.cwd(),
@@ -20,8 +21,8 @@ const buf = spawnSync(
       // Extensions that boot up and throw warnings on the host machine will cause tests to fail,
       // so running with --disable-extensions is a must. This env variable in particular is open
       // to injection in this manner, so I did it with a sad face.
-      CODE_TESTS_WORKSPACE: process.cwd(),
-      DISPLAY: process.env.DISPLAY
+      CODE_TESTS_WORKSPACE: process.cwd()
+      // DISPLAY: process.env.DISPLAY
     }
   }
 );
