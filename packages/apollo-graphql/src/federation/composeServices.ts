@@ -84,13 +84,17 @@ function isStringValueNode(node: any): node is StringValueNode {
 export function composeServices(services: ServiceDefinition[]) {
   let errors: GraphQLError[] | undefined = undefined;
   // Map of all definitions to eventually be passed to extendSchema
+  // TODO: rename?
+  // typeToDefinitionsMap
   const definitionsMap: {
-    [name: string]: TypeDefinitionNode[];
+    [typeName: string]: TypeDefinitionNode[];
   } = Object.create(null);
 
   // Map of all extensions to eventually be passed to extendSchema
+  // TODO: rename?
+  // typeToExtensionsMap
   const extensionsMap: {
-    [name: string]: TypeExtensionNode[];
+    [typeName: string]: TypeExtensionNode[];
   } = Object.create(null);
 
   /**
@@ -130,11 +134,9 @@ export function composeServices(services: ServiceDefinition[]) {
    */
 
   /**
-   * XXX I want to rename this map to something that feels more directionally intutitive:
-   * typesMap
-   * typeToServiceMap
-   * typeWithExtensionsMap
-   * typeWithExtensionsToServiceMap
+   * TODO: rename
+   * serviceMap -> typeToServiceMap
+   * extensionFields -> extendedFieldToServiceMap
    */
   const serviceMap: {
     [typeName: string]: {
