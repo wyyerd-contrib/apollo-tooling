@@ -15,13 +15,15 @@ import {
   isInputObjectType,
   isInterfaceType,
   isUnionType,
-  isScalarType
+  isScalarType,
+  StringValueNode
 } from "graphql";
 import { SDLValidationRule } from "graphql/validation/ValidationContext";
 import { validateSDL } from "graphql/validation/validate";
 
 import federationDirectives from "./directives";
 
+type ServiceName = string | null;
 declare module "graphql/validation/validate" {
   function validateSDL(
     documentAST: DocumentNode,
@@ -32,45 +34,51 @@ declare module "graphql/validation/validate" {
 
 declare module "graphql/type/definition" {
   interface GraphQLObjectType {
-    serviceName?: string;
+    serviceName?: ServiceName;
+    keys?: string[];
   }
 
   interface GraphQLEnumType {
-    serviceName?: string;
+    serviceName?: ServiceName;
   }
 
   interface GraphQLScalarType {
-    serviceName?: string;
+    serviceName?: ServiceName;
   }
 
   interface GraphQLInterfaceType {
-    serviceName?: string;
+    serviceName?: ServiceName;
   }
 
   interface GraphQLUnionType {
-    serviceName?: string;
+    serviceName?: ServiceName;
   }
 
   interface GraphQLInputObjectType {
-    serviceName?: string;
+    serviceName?: ServiceName;
   }
 
   interface GraphQLInputField {
-    serviceName?: string;
+    serviceName?: ServiceName;
   }
 
   interface GraphQLField<TSource, TContext> {
-    serviceName?: string;
+    serviceName?: ServiceName;
+    requires?: string;
   }
 
   interface GraphQLEnumValue {
-    serviceName?: string;
+    serviceName?: ServiceName;
   }
 }
 
 interface ServiceDefinition {
   typeDefs: DocumentNode;
   name: string;
+}
+
+function isStringValueNode(node: any): node is StringValueNode {
+  return node.kind === Kind.STRING;
 }
 
 export function composeServices(services: ServiceDefinition[]) {
@@ -130,7 +138,7 @@ export function composeServices(services: ServiceDefinition[]) {
    */
   const serviceMap: {
     [typeName: string]: {
-      serviceName?: string;
+      serviceName?: ServiceName;
       extensionFields: { [fieldName: string]: string };
     };
   } = Object.create(null);
@@ -142,6 +150,7 @@ export function composeServices(services: ServiceDefinition[]) {
           definition.kind === Kind.OBJECT_TYPE_EXTENSION) &&
         definition.fields
       ) {
+        // @ts-ignore, fields is a ReadonlyArray
         definition.fields = definition.fields.filter(field => {
           return !(
             field.directives &&
@@ -249,20 +258,19 @@ export function composeServices(services: ServiceDefinition[]) {
    * - Check each of the extensions, and see if there's a corresponding definition
    * - if so, do nothing. If not, create an empty definition with `null` as the serviceName
    */
-  for (const [name, extensionNode] of Object.entries(extensionsMap)) {
-    if (!definitionsMap[name]) {
-      definitionsMap[name] = [
+  for (const extensionTypeName of Object.keys(extensionsMap)) {
+    if (!definitionsMap[extensionTypeName]) {
+      definitionsMap[extensionTypeName] = [
         {
           kind: Kind.OBJECT_TYPE_DEFINITION,
-          name: { kind: Kind.NAME, value: name },
+          name: { kind: Kind.NAME, value: extensionTypeName },
           fields: []
         }
       ];
 
-      // XXX types might be off if no TS error is happening here
       // ideally, the serviceName would be the first extending service, but there's not a reliable way
       // to trace the extensionNode back to a service.
-      serviceMap[name].serviceName = null;
+      serviceMap[extensionTypeName].serviceName = null;
     }
   }
 
@@ -314,12 +322,14 @@ export function composeServices(services: ServiceDefinition[]) {
         namedType.astNode.directives.filter(
           directive => directive.name.value === "key"
         );
+
       namedType.keys = keyDirectives
         ? keyDirectives
             .map(keyDirective =>
-              keyDirective.arguments
+              keyDirective.arguments &&
+              isStringValueNode(keyDirective.arguments[0].value)
                 ? keyDirective.arguments[0].value.value
-                : null
+                : ""
             )
             .filter(Boolean)
         : [];
@@ -328,23 +338,29 @@ export function composeServices(services: ServiceDefinition[]) {
     for (const [fieldName, extendingServiceName] of Object.entries(
       extensionFields
     )) {
-      if (
-        isObjectType(namedType) ||
-        isInputObjectType(namedType) ||
-        isInterfaceType(namedType)
-      ) {
+      if (isObjectType(namedType)) {
         const field = namedType.getFields()[fieldName];
         field.serviceName = extendingServiceName;
 
         const requiresDirective =
           field.astNode &&
+          field.astNode.directives &&
           field.astNode.directives.find(
             directive => directive.name.value === "requires"
           );
 
-        if (requiresDirective && requiresDirective.arguments) {
+        if (
+          requiresDirective &&
+          requiresDirective.arguments &&
+          isStringValueNode(requiresDirective.arguments[0].value)
+        ) {
           field.requires = requiresDirective.arguments[0].value.value;
         }
+      }
+
+      if (isInputObjectType(namedType) || isInterfaceType(namedType)) {
+        const field = namedType.getFields()[fieldName];
+        field.serviceName = extendingServiceName;
       }
 
       // TODO: We want to throw warnings for this
