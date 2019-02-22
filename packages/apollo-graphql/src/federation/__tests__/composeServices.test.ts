@@ -716,7 +716,6 @@ type Query {
   });
 
   describe("federation directives", () => {
-    // What's next?
     // Directives - allow schema (federation) directives
     it("does not redefine fields with @external when composing", () => {
       const serviceA = {
@@ -756,7 +755,7 @@ type Product {
       expect(product.serviceName).toEqual("serviceA");
     });
 
-    it("add @requires information to fields with the requires directive", () => {
+    it("adds @requires information to fields with the requires directive", () => {
       const serviceA = {
         typeDefs: gql`
           type Product @key(fields: "sku") {
@@ -777,11 +776,45 @@ type Product {
       };
 
       const { schema, errors } = composeServices([serviceA, serviceB]);
+      expect(errors).toHaveLength(0);
+
       const product = schema.getType("Product") as GraphQLObjectType;
       expect(product.getFields()["price"].requires).toEqual("sku");
     });
 
-    it("add @key information to types", () => {
+    it("adds @provides information to fields with the provides directive", () => {
+      const serviceA = {
+        typeDefs: gql`
+          type Review {
+            product: Product @provides(fields: "sku")
+          }
+
+          extend type Product {
+            sku: String @external
+            color: String
+          }
+        `,
+        name: "serviceA"
+      };
+
+      const serviceB = {
+        typeDefs: gql`
+          type Product @key(fields: "sku") {
+            sku: String!
+            price: Int! @requires(fields: "sku")
+          }
+        `,
+        name: "serviceB"
+      };
+
+      const { schema, errors } = composeServices([serviceA, serviceB]);
+      expect(errors).toHaveLength(0);
+
+      const review = schema.getType("Review") as GraphQLObjectType;
+      expect(review.getFields()["product"].provides).toEqual("sku");
+    });
+
+    it("adds @key information to types with the key directive", () => {
       const serviceA = {
         typeDefs: gql`
           type Product @key(fields: "sku") @key(fields: "upc") {
@@ -803,6 +836,15 @@ type Product {
       };
 
       const { schema, errors } = composeServices([serviceA, serviceB]);
+
+      // A known limitation from graphql-js right now, support for repeated directives
+      // expected to land in 14.2.0
+      expect(errors).toMatchInlineSnapshot(`
+Array [
+  [GraphQLError: The directive "key" can only be used once at this location.],
+]
+`);
+
       const product = schema.getType("Product") as GraphQLObjectType;
       expect(product.keys).toEqual(["sku", "upc"]);
     });

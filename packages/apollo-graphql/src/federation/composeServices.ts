@@ -65,6 +65,7 @@ declare module "graphql/type/definition" {
   interface GraphQLField<TSource, TContext> {
     serviceName?: ServiceName;
     requires?: string;
+    provides?: string;
   }
 
   interface GraphQLEnumValue {
@@ -84,17 +85,13 @@ function isStringValueNode(node: any): node is StringValueNode {
 export function composeServices(services: ServiceDefinition[]) {
   let errors: GraphQLError[] | undefined = undefined;
   // Map of all definitions to eventually be passed to extendSchema
-  // TODO: rename?
-  // typeToDefinitionsMap
   const definitionsMap: {
-    [typeName: string]: TypeDefinitionNode[];
+    [name: string]: TypeDefinitionNode[];
   } = Object.create(null);
 
   // Map of all extensions to eventually be passed to extendSchema
-  // TODO: rename?
-  // typeToExtensionsMap
   const extensionsMap: {
-    [typeName: string]: TypeExtensionNode[];
+    [name: string]: TypeExtensionNode[];
   } = Object.create(null);
 
   /**
@@ -134,9 +131,11 @@ export function composeServices(services: ServiceDefinition[]) {
    */
 
   /**
-   * TODO: rename
-   * serviceMap -> typeToServiceMap
-   * extensionFields -> extendedFieldToServiceMap
+   * XXX I want to rename this map to something that feels more directionally intutitive:
+   * typesMap
+   * typeToServiceMap
+   * typeWithExtensionsMap
+   * typeWithExtensionsToServiceMap
    */
   const serviceMap: {
     [typeName: string]: {
@@ -288,7 +287,6 @@ export function composeServices(services: ServiceDefinition[]) {
     kind: Kind.DOCUMENT,
     definitions: Object.values(definitionsMap).flat()
   };
-  // throw new Error(JSON.stringify(definitionsDocument));
 
   errors = validateSDL(definitionsDocument, schema);
 
@@ -335,6 +333,26 @@ export function composeServices(services: ServiceDefinition[]) {
             )
             .filter(Boolean)
         : [];
+
+      // This permits the provides directive to live on a field belonging to
+      // a type extension. Is this permissible?
+      // Confirm with Martijn
+      for (const field of Object.values(namedType.getFields())) {
+        const providesDirective =
+          field.astNode &&
+          field.astNode.directives &&
+          field.astNode.directives.find(
+            directive => directive.name.value === "provides"
+          );
+
+        if (
+          providesDirective &&
+          providesDirective.arguments &&
+          isStringValueNode(providesDirective.arguments[0].value)
+        ) {
+          field.provides = providesDirective.arguments[0].value.value;
+        }
+      }
     }
 
     for (const [fieldName, extendingServiceName] of Object.entries(

@@ -36,7 +36,7 @@ export const RequiresDirective = new GraphQLDirective({
 });
 
 export const ProvidesDirective = new GraphQLDirective({
-  name: "requires",
+  name: "provides",
   description: "",
   locations: [DirectiveLocation.FIELD_DEFINITION],
   args: {
