@@ -1,8 +1,4 @@
-import {
-  GraphQLObjectType,
-  GraphQLEnumType,
-  GraphQLInputObjectType
-} from "graphql";
+import { GraphQLObjectType, GraphQLEnumType } from "graphql";
 import gql from "graphql-tag";
 import { composeServices } from "../composeServices";
 
@@ -483,6 +479,7 @@ type Product {
   // Maybe just test conflicts in types
   // it("interfaces, unions", () => {});
 
+  // TODO: _allow_ enum and input extensions, but don't add serviceName
   describe("input and enum type extensions", () => {
     it("extends input types", () => {
       const serviceA = {
@@ -508,11 +505,11 @@ type Product {
       expect(schema).toBeDefined();
       expect(errors).toMatchInlineSnapshot(`Array []`);
 
-      const colorField = (schema.getType(
-        "ProductInput"
-      ) as GraphQLInputObjectType).getFields()["color"];
+      // const colorField = (schema.getType(
+      //   "ProductInput"
+      // ) as GraphQLInputObjectType).getFields()["color"];
 
-      expect(colorField.serviceName).toEqual("serviceB");
+      // expect(colorField.serviceName).toEqual("serviceB");
     });
 
     it("extends enum types", () => {
@@ -539,9 +536,9 @@ type Product {
       expect(schema).toBeDefined();
       expect(errors).toMatchInlineSnapshot(`Array []`);
 
-      const category = schema.getType("ProductCategory") as GraphQLEnumType;
-      expect(category.serviceName).toEqual("serviceA");
-      expect(category.getValue("BEYOND").serviceName).toEqual("serviceB");
+      // const category = schema.getType("ProductCategory") as GraphQLEnumType;
+      // expect(category.serviceName).toEqual("serviceA");
+      // expect(category.getValue("BEYOND").serviceName).toEqual("serviceB");
     });
 
     it("uses most recent type declaration for enums", () => {
@@ -782,6 +779,7 @@ type Product {
       expect(product.getFields()["price"].requires).toEqual("sku");
     });
 
+    // TODO: provides can happen on an extended type as well, add a test case for this
     it("adds @provides information to fields with the provides directive", () => {
       const serviceA = {
         typeDefs: gql`

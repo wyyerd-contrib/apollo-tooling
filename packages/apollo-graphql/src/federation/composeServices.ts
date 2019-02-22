@@ -16,7 +16,9 @@ import {
   isInterfaceType,
   isUnionType,
   isScalarType,
-  StringValueNode
+  StringValueNode,
+  GraphQLField,
+  FieldDefinitionNode
 } from "graphql";
 import { SDLValidationRule } from "graphql/validation/ValidationContext";
 import { validateSDL } from "graphql/validation/validate";
@@ -24,6 +26,13 @@ import { validateSDL } from "graphql/validation/validate";
 import federationDirectives from "./directives";
 
 type ServiceName = string | null;
+
+export function isNotNullOrUndefined<T>(
+  value: T | null | undefined
+): value is T {
+  return value !== null && typeof value !== "undefined";
+}
+
 declare module "graphql/validation/validate" {
   function validateSDL(
     documentAST: DocumentNode,
@@ -151,15 +160,17 @@ export function composeServices(services: ServiceDefinition[]) {
           definition.kind === Kind.OBJECT_TYPE_EXTENSION) &&
         definition.fields
       ) {
-        // @ts-ignore, fields is a ReadonlyArray
-        definition.fields = definition.fields.filter(field => {
-          return !(
-            field.directives &&
-            field.directives.some(
-              directive => directive.name.value === "external"
-            )
-          );
-        });
+        // XXX casting out of ReadonlyArray
+        (definition.fields as FieldDefinitionNode[]) = definition.fields.filter(
+          field => {
+            return !(
+              field.directives &&
+              field.directives.some(
+                directive => directive.name.value === "external"
+              )
+            );
+          }
+        );
       }
       if (isTypeDefinitionNode(definition)) {
         const typeName = definition.name.value;
@@ -329,9 +340,9 @@ export function composeServices(services: ServiceDefinition[]) {
               keyDirective.arguments &&
               isStringValueNode(keyDirective.arguments[0].value)
                 ? keyDirective.arguments[0].value.value
-                : ""
+                : null
             )
-            .filter(Boolean)
+            .filter(isNotNullOrUndefined)
         : [];
 
       // This permits the provides directive to live on a field belonging to
@@ -378,30 +389,31 @@ export function composeServices(services: ServiceDefinition[]) {
         }
       }
 
-      if (isInputObjectType(namedType) || isInterfaceType(namedType)) {
-        const field = namedType.getFields()[fieldName];
-        field.serviceName = extendingServiceName;
-      }
+      // We don't need these at all
+      // if (isInputObjectType(namedType) || isInterfaceType(namedType)) {
+      //   const field = namedType.getFields()[fieldName];
+      //   field.serviceName = extendingServiceName;
+      // }
 
       // TODO: We want to throw warnings for this
-      if (isEnumType(namedType)) {
-        const enumValue = namedType
-          .getValues()
-          .find(value => value.name === fieldName);
+      // if (isEnumType(namedType)) {
+      //   const enumValue = namedType
+      //     .getValues()
+      //     .find(value => value.name === fieldName);
 
-        if (enumValue) {
-          enumValue.serviceName = extendingServiceName;
-        }
-      }
+      //   if (enumValue) {
+      //     enumValue.serviceName = extendingServiceName;
+      //   }
+      // }
 
-      if (isUnionType(namedType)) {
-        // TODO
-        // can you extend a union type?
-      }
+      // if (isUnionType(namedType)) {
+      //   // TODO
+      //   // can you extend a union type?
+      // }
 
-      if (isScalarType(namedType)) {
-        // TODO
-      }
+      // if (isScalarType(namedType)) {
+      //   // TODO
+      // }
     }
   }
 
