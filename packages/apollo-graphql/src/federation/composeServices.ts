@@ -9,20 +9,16 @@ import {
   isTypeDefinitionNode,
   isTypeExtensionNode,
   GraphQLError,
-  isEnumType,
   GraphQLNamedType,
   isObjectType,
-  isInputObjectType,
-  isInterfaceType,
-  isUnionType,
-  isScalarType,
   StringValueNode,
-  GraphQLField,
-  FieldDefinitionNode
+  FieldDefinitionNode,
+  parse,
+  SelectionNode,
+  OperationDefinitionNode
 } from "graphql";
 import { SDLValidationRule } from "graphql/validation/ValidationContext";
 import { validateSDL } from "graphql/validation/validate";
-
 import federationDirectives from "./directives";
 
 type ServiceName = string | null;
@@ -33,15 +29,20 @@ export function isNotNullOrUndefined<T>(
   return value !== null && typeof value !== "undefined";
 }
 
+export function parseSelections(source: string) {
+  return (parse(`query { ${source} }`)
+    .definitions[0] as OperationDefinitionNode).selectionSet.selections;
+}
+
 interface FederationType {
   serviceName?: ServiceName;
-  keys?: string[];
+  keys?: ReadonlyArray<SelectionNode>[];
 }
 
 interface FederationField {
   serviceName?: ServiceName;
-  requires?: string;
-  provides?: string;
+  requires?: ReadonlyArray<SelectionNode>;
+  provides?: ReadonlyArray<SelectionNode>;
 }
 
 declare module "graphql/validation/validate" {
@@ -352,16 +353,13 @@ export function composeServices(services: ServiceDefinition[]) {
               .map(keyDirective =>
                 keyDirective.arguments &&
                 isStringValueNode(keyDirective.arguments[0].value)
-                  ? keyDirective.arguments[0].value.value
+                  ? parseSelections(keyDirective.arguments[0].value.value)
                   : null
               )
               .filter(isNotNullOrUndefined)
           : []
       };
 
-      // This permits the provides directive to live on a field belonging to
-      // a type extension. Is this permissible?
-      // Confirm with Martijn
       for (const field of Object.values(namedType.getFields())) {
         const providesDirective =
           field.astNode &&
@@ -377,7 +375,9 @@ export function composeServices(services: ServiceDefinition[]) {
         ) {
           field.federation = {
             ...field.federation,
-            provides: providesDirective.arguments[0].value.value
+            provides: parseSelections(
+              providesDirective.arguments[0].value.value
+            )
           };
         }
       }
@@ -407,7 +407,9 @@ export function composeServices(services: ServiceDefinition[]) {
         ) {
           field.federation = {
             ...field.federation,
-            requires: requiresDirective.arguments[0].value.value
+            requires: parseSelections(
+              requiresDirective.arguments[0].value.value
+            )
           };
         }
       }

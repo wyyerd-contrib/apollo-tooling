@@ -774,99 +774,237 @@ type Product {
       expect(product.federation.serviceName).toEqual("serviceA");
     });
 
-    it("adds @requires information to fields with the requires directive", () => {
-      const serviceA = {
-        typeDefs: gql`
-          type Product @key(fields: "sku") {
-            sku: String!
-          }
-        `,
-        name: "serviceA"
-      };
+    describe("@requires directive", () => {
+      it("adds @requires information to fields using a simple field set", () => {
+        const serviceA = {
+          typeDefs: gql`
+            type Product @key(fields: "sku") {
+              sku: String!
+            }
+          `,
+          name: "serviceA"
+        };
 
-      const serviceB = {
-        typeDefs: gql`
-          extend type Product {
-            sku: String! @external
-            price: Int! @requires(fields: "sku")
-          }
-        `,
-        name: "serviceB"
-      };
+        const serviceB = {
+          typeDefs: gql`
+            extend type Product {
+              sku: String! @external
+              price: Int! @requires(fields: "sku")
+            }
+          `,
+          name: "serviceB"
+        };
 
-      const { schema, errors } = composeServices([serviceA, serviceB]);
-      expect(errors).toHaveLength(0);
+        const { schema, errors } = composeServices([serviceA, serviceB]);
+        expect(errors).toHaveLength(0);
 
-      const product = schema.getType("Product") as GraphQLObjectType;
-      expect(product.getFields()["price"].federation.requires).toEqual("sku");
+        const product = schema.getType("Product") as GraphQLObjectType;
+        expect(
+          product.getFields()["price"].federation.requires
+        ).toMatchInlineSnapshot(`sku`);
+      });
+
+      it("adds @requires information to fields using a nested field set", () => {
+        const serviceA = {
+          typeDefs: gql`
+            type Product @key(fields: "sku { id }") {
+              sku: Sku!
+            }
+
+            type Sku {
+              id: ID!
+              value: String!
+            }
+          `,
+          name: "serviceA"
+        };
+
+        const serviceB = {
+          typeDefs: gql`
+            extend type Product {
+              sku: Sku! @external
+              price: Float! @requires(fields: "sku { id }")
+            }
+          `,
+          name: "serviceB"
+        };
+
+        const { schema, errors } = composeServices([serviceA, serviceB]);
+        expect(errors).toHaveLength(0);
+
+        const product = schema.getType("Product") as GraphQLObjectType;
+        expect(product.getFields()["price"].federation.requires)
+          .toMatchInlineSnapshot(`
+sku {
+  id
+}
+`);
+      });
     });
 
     // TODO: provides can happen on an extended type as well, add a test case for this
-    it("adds @provides information to fields with the provides directive", () => {
-      const serviceA = {
-        typeDefs: gql`
-          type Review {
-            product: Product @provides(fields: "sku")
-          }
+    describe("@provides directive", () => {
+      it("adds @provides information to fields using a simple field set", () => {
+        const serviceA = {
+          typeDefs: gql`
+            type Review {
+              product: Product @provides(fields: "sku")
+            }
 
-          extend type Product {
-            sku: String @external
-            color: String
-          }
-        `,
-        name: "serviceA"
-      };
+            extend type Product {
+              sku: String @external
+              color: String
+            }
+          `,
+          name: "serviceA"
+        };
 
-      const serviceB = {
-        typeDefs: gql`
-          type Product @key(fields: "sku") {
-            sku: String!
-            price: Int! @requires(fields: "sku")
-          }
-        `,
-        name: "serviceB"
-      };
+        const serviceB = {
+          typeDefs: gql`
+            type Product @key(fields: "sku") {
+              sku: String!
+              price: Int! @requires(fields: "sku")
+            }
+          `,
+          name: "serviceB"
+        };
 
-      const { schema, errors } = composeServices([serviceA, serviceB]);
-      expect(errors).toHaveLength(0);
+        const { schema, errors } = composeServices([serviceA, serviceB]);
+        expect(errors).toHaveLength(0);
 
-      const review = schema.getType("Review") as GraphQLObjectType;
-      expect(review.getFields()["product"].federation.provides).toEqual("sku");
+        const review = schema.getType("Review") as GraphQLObjectType;
+        expect(
+          review.getFields()["product"].federation.provides
+        ).toMatchInlineSnapshot(`sku`);
+      });
+
+      it("adds @provides information to fields using a nested field set", () => {
+        const serviceA = {
+          typeDefs: gql`
+            type Review {
+              product: Product @provides(fields: "sku { id }")
+            }
+
+            extend type Product {
+              sku: Sku @external
+              color: String
+            }
+          `,
+          name: "serviceA"
+        };
+
+        const serviceB = {
+          typeDefs: gql`
+            type Product @key(fields: "sku { id }") {
+              sku: Sku!
+              price: Int! @requires(fields: "sku")
+            }
+
+            type Sku {
+              id: ID!
+              value: String!
+            }
+          `,
+          name: "serviceB"
+        };
+
+        const { schema, errors } = composeServices([serviceA, serviceB]);
+        expect(errors).toHaveLength(0);
+
+        const review = schema.getType("Review") as GraphQLObjectType;
+        expect(review.getFields()["product"].federation.provides)
+          .toMatchInlineSnapshot(`
+sku {
+  id
+}
+`);
+      });
     });
 
-    it("adds @key information to types with the key directive", () => {
-      const serviceA = {
-        typeDefs: gql`
-          type Product @key(fields: "sku") @key(fields: "upc") {
-            sku: String!
-            upc: String!
-          }
-        `,
-        name: "serviceA"
-      };
+    describe("@key directive", () => {
+      it("adds @key information to types using basic string notation", () => {
+        const serviceA = {
+          typeDefs: gql`
+            type Product @key(fields: "sku") @key(fields: "upc") {
+              sku: String!
+              upc: String!
+            }
+          `,
+          name: "serviceA"
+        };
 
-      const serviceB = {
-        typeDefs: gql`
-          extend type Product {
-            sku: String! @external
-            price: Int! @requires(fields: "sku")
-          }
-        `,
-        name: "serviceB"
-      };
+        const serviceB = {
+          typeDefs: gql`
+            extend type Product {
+              sku: String! @external
+              price: Int! @requires(fields: "sku")
+            }
+          `,
+          name: "serviceB"
+        };
 
-      const { schema, errors } = composeServices([serviceA, serviceB]);
+        const { schema, errors } = composeServices([serviceA, serviceB]);
 
-      // A known limitation from graphql-js right now, support for repeated directives
-      // expected to land in 14.2.0
-      expect(errors).toMatchInlineSnapshot(`
+        // A known limitation from graphql-js right now, support for repeated directives
+        // expected to land in 14.2.0
+        expect(errors).toMatchInlineSnapshot(`
 Array [
   [GraphQLError: The directive "key" can only be used once at this location.],
 ]
 `);
 
-      const product = schema.getType("Product") as GraphQLObjectType;
-      expect(product.federation.keys).toEqual(["sku", "upc"]);
+        const product = schema.getType("Product") as GraphQLObjectType;
+        expect(product.federation.keys).toMatchInlineSnapshot(`
+Array [
+  sku,
+  upc,
+]
+`);
+      });
+
+      it("adds @key information to types using selection set notation", () => {
+        const serviceA = {
+          typeDefs: gql`
+            type Product @key(fields: "color { id } color { id value }") {
+              sku: String!
+              upc: String!
+              color: Color!
+            }
+
+            type Color {
+              id: ID!
+              value: String!
+            }
+          `,
+          name: "serviceA"
+        };
+
+        const serviceB = {
+          typeDefs: gql`
+            extend type Product {
+              sku: String! @external
+              price: Int! @requires(fields: "sku")
+            }
+          `,
+          name: "serviceB"
+        };
+
+        const { schema, errors } = composeServices([serviceA, serviceB]);
+        expect(errors).toHaveLength(0);
+
+        const product = schema.getType("Product") as GraphQLObjectType;
+        expect(product.federation.keys).toMatchInlineSnapshot(`
+Array [
+  color {
+  id
+}
+color {
+  id
+  value
+},
+]
+`);
+      });
     });
   });
 });

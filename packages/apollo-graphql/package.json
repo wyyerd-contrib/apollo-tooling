@@ -37,7 +37,8 @@
     ],
     "snapshotSerializers": [
       "<rootDir>/src/__tests__/snapshotSerializers/astSerializer.ts",
-      "<rootDir>/src/__tests__/snapshotSerializers/graphQLTypeSerializer.ts"
+      "<rootDir>/src/__tests__/snapshotSerializers/graphQLTypeSerializer.ts",
+      "<rootDir>/src/__tests__/snapshotSerializers/selectionSetSerializer.ts"
     ],
     "moduleFileExtensions": [
       "ts",
