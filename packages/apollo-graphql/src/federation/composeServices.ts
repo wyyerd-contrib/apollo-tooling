@@ -33,6 +33,17 @@ export function isNotNullOrUndefined<T>(
   return value !== null && typeof value !== "undefined";
 }
 
+interface FederationType {
+  serviceName?: ServiceName;
+  keys?: string[];
+}
+
+interface FederationField {
+  serviceName?: ServiceName;
+  requires?: string;
+  provides?: string;
+}
+
 declare module "graphql/validation/validate" {
   function validateSDL(
     documentAST: DocumentNode,
@@ -43,42 +54,39 @@ declare module "graphql/validation/validate" {
 
 declare module "graphql/type/definition" {
   interface GraphQLObjectType {
-    serviceName?: ServiceName;
-    keys?: string[];
+    federation?: FederationType;
   }
 
   interface GraphQLEnumType {
-    serviceName?: ServiceName;
+    federation?: FederationType;
   }
 
   interface GraphQLScalarType {
-    serviceName?: ServiceName;
+    federation?: FederationType;
   }
 
   interface GraphQLInterfaceType {
-    serviceName?: ServiceName;
+    federation?: FederationType;
   }
 
   interface GraphQLUnionType {
-    serviceName?: ServiceName;
+    federation?: FederationType;
   }
 
   interface GraphQLInputObjectType {
-    serviceName?: ServiceName;
-  }
-
-  interface GraphQLInputField {
-    serviceName?: ServiceName;
-  }
-
-  interface GraphQLField<TSource, TContext> {
-    serviceName?: ServiceName;
-    requires?: string;
-    provides?: string;
+    federation?: FederationType;
   }
 
   interface GraphQLEnumValue {
-    serviceName?: ServiceName;
+    federation?: FederationType;
+  }
+
+  interface GraphQLInputField {
+    federation?: FederationField;
+  }
+
+  interface GraphQLField<TSource, TContext> {
+    federation?: FederationField;
   }
 }
 
@@ -324,7 +332,10 @@ export function composeServices(services: ServiceDefinition[]) {
     // A named type can be any one of:
     // ObjectType, InputObjectType, EnumType, UnionType, InterfaceType, ScalarType
     const namedType = schema.getType(typeName) as GraphQLNamedType;
-    namedType.serviceName = baseServiceName;
+    namedType.federation = {
+      ...namedType.federation,
+      serviceName: baseServiceName
+    };
 
     if (isObjectType(namedType)) {
       const keyDirectives =
@@ -334,16 +345,19 @@ export function composeServices(services: ServiceDefinition[]) {
           directive => directive.name.value === "key"
         );
 
-      namedType.keys = keyDirectives
-        ? keyDirectives
-            .map(keyDirective =>
-              keyDirective.arguments &&
-              isStringValueNode(keyDirective.arguments[0].value)
-                ? keyDirective.arguments[0].value.value
-                : null
-            )
-            .filter(isNotNullOrUndefined)
-        : [];
+      namedType.federation = {
+        ...namedType.federation,
+        keys: keyDirectives
+          ? keyDirectives
+              .map(keyDirective =>
+                keyDirective.arguments &&
+                isStringValueNode(keyDirective.arguments[0].value)
+                  ? keyDirective.arguments[0].value.value
+                  : null
+              )
+              .filter(isNotNullOrUndefined)
+          : []
+      };
 
       // This permits the provides directive to live on a field belonging to
       // a type extension. Is this permissible?
@@ -361,7 +375,10 @@ export function composeServices(services: ServiceDefinition[]) {
           providesDirective.arguments &&
           isStringValueNode(providesDirective.arguments[0].value)
         ) {
-          field.provides = providesDirective.arguments[0].value.value;
+          field.federation = {
+            ...field.federation,
+            provides: providesDirective.arguments[0].value.value
+          };
         }
       }
     }
@@ -371,7 +388,10 @@ export function composeServices(services: ServiceDefinition[]) {
     )) {
       if (isObjectType(namedType)) {
         const field = namedType.getFields()[fieldName];
-        field.serviceName = extendingServiceName;
+        field.federation = {
+          ...field.federation,
+          serviceName: extendingServiceName
+        };
 
         const requiresDirective =
           field.astNode &&
@@ -385,7 +405,10 @@ export function composeServices(services: ServiceDefinition[]) {
           requiresDirective.arguments &&
           isStringValueNode(requiresDirective.arguments[0].value)
         ) {
-          field.requires = requiresDirective.arguments[0].value.value;
+          field.federation = {
+            ...field.federation,
+            requires: requiresDirective.arguments[0].value.value
+          };
         }
       }
 

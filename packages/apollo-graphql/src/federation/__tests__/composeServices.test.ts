@@ -45,8 +45,8 @@ type Product {
     const product = schema.getType("Product") as GraphQLObjectType;
     const user = schema.getType("User") as GraphQLObjectType;
 
-    expect(product.serviceName).toEqual("serviceA");
-    expect(user.serviceName).toEqual("serviceB");
+    expect(product.federation.serviceName).toEqual("serviceA");
+    expect(user.federation.serviceName).toEqual("serviceB");
   });
 
   describe("basic type extensions", () => {
@@ -84,8 +84,10 @@ type Product {
 
       const product = schema.getType("Product") as GraphQLObjectType;
 
-      expect(product.serviceName).toEqual("serviceA");
-      expect(product.getFields()["price"].serviceName).toEqual("serviceB");
+      expect(product.federation.serviceName).toEqual("serviceA");
+      expect(product.getFields()["price"].federation.serviceName).toEqual(
+        "serviceB"
+      );
     });
 
     it("works when extension service is first", () => {
@@ -121,8 +123,10 @@ type Product {
 
       const product = schema.getType("Product") as GraphQLObjectType;
 
-      expect(product.serviceName).toEqual("serviceB");
-      expect(product.getFields()["price"].serviceName).toEqual("serviceA");
+      expect(product.federation.serviceName).toEqual("serviceB");
+      expect(product.getFields()["price"].federation.serviceName).toEqual(
+        "serviceA"
+      );
     });
 
     it("works with multiple extensions on the same type", () => {
@@ -173,9 +177,13 @@ type Product {
 
       const product = schema.getType("Product") as GraphQLObjectType;
 
-      expect(product.serviceName).toEqual("serviceB");
-      expect(product.getFields()["price"].serviceName).toEqual("serviceA");
-      expect(product.getFields()["color"].serviceName).toEqual("serviceC");
+      expect(product.federation.serviceName).toEqual("serviceB");
+      expect(product.getFields()["price"].federation.serviceName).toEqual(
+        "serviceA"
+      );
+      expect(product.getFields()["color"].federation.serviceName).toEqual(
+        "serviceC"
+      );
     });
 
     it("allows extensions to overwrite other extension fields", () => {
@@ -230,8 +238,10 @@ type Product {
 }
 `);
 
-      expect(product.serviceName).toEqual("serviceB");
-      expect(product.getFields()["price"].serviceName).toEqual("serviceC");
+      expect(product.federation.serviceName).toEqual("serviceB");
+      expect(product.getFields()["price"].federation.serviceName).toEqual(
+        "serviceC"
+      );
     });
 
     it("preserves arguments for fields", () => {
@@ -306,7 +316,7 @@ type Product {
 
       const product = schema.getType("Product") as GraphQLObjectType;
 
-      expect(product.serviceName).toEqual(null);
+      expect(product.federation.serviceName).toEqual(null);
     });
 
     // This is a limitation of extendSchema currently (this is currently a broken test to demonstrate)
@@ -347,8 +357,12 @@ type Product {
     name: String!
   }
   `);
-      expect(product.getFields()["sku"].serviceName).toEqual("serviceB");
-      expect(product.getFields()["name"].serviceName).toEqual("serviceB");
+      expect(product.getFields()["sku"].federation.serviceName).toEqual(
+        "serviceB"
+      );
+      expect(product.getFields()["name"].federation.serviceName).toEqual(
+        "serviceB"
+      );
     });
 
     describe("collisions & error handling", () => {
@@ -388,7 +402,9 @@ type Product {
   name: String!
 }
 `);
-        expect(product.getFields()["name"].serviceName).toEqual("serviceB");
+        expect(product.getFields()["name"].federation.serviceName).toEqual(
+          "serviceB"
+        );
       });
 
       it("report multiple errors correctly", () => {
@@ -429,7 +445,9 @@ type Product {
   name: String!
 }
 `);
-        expect(product.getFields()["name"].serviceName).toEqual("serviceB");
+        expect(product.getFields()["name"].federation.serviceName).toEqual(
+          "serviceB"
+        );
       });
 
       it("handles collisions of base types as expected (newest takes precedence)", () => {
@@ -576,7 +594,7 @@ enum ProductCategory {
 }
 `);
 
-      expect(category.serviceName).toEqual("serviceB");
+      expect(category.federation.serviceName).toEqual("serviceB");
     });
   });
 
@@ -626,8 +644,10 @@ type Product implements Item {
 
       const product = schema.getType("Product") as GraphQLObjectType;
 
-      expect(product.serviceName).toEqual("serviceA");
-      expect(product.getFields()["id"].serviceName).toEqual("serviceB");
+      expect(product.federation.serviceName).toEqual("serviceA");
+      expect(product.getFields()["id"].federation.serviceName).toEqual(
+        "serviceB"
+      );
     });
   });
 
@@ -665,7 +685,7 @@ type Query {
 
       const query = schema.getType("Query") as GraphQLObjectType;
 
-      expect(query.serviceName).toEqual(null);
+      expect(query.federation.serviceName).toEqual(null);
     });
 
     xit("", () => {
@@ -705,7 +725,7 @@ type Query {
 
       const query = schema.getType("Query") as GraphQLObjectType;
 
-      expect(query.serviceName).toBeUndefined();
+      expect(query.federation.serviceName).toBeUndefined();
     });
 
     // TODO: not sure what to do here. Haven't looked into it yet :)
@@ -748,8 +768,10 @@ type Product {
   price: Int!
 }
 `);
-      expect(product.getFields()["price"].serviceName).toEqual("serviceB");
-      expect(product.serviceName).toEqual("serviceA");
+      expect(product.getFields()["price"].federation.serviceName).toEqual(
+        "serviceB"
+      );
+      expect(product.federation.serviceName).toEqual("serviceA");
     });
 
     it("adds @requires information to fields with the requires directive", () => {
@@ -776,7 +798,7 @@ type Product {
       expect(errors).toHaveLength(0);
 
       const product = schema.getType("Product") as GraphQLObjectType;
-      expect(product.getFields()["price"].requires).toEqual("sku");
+      expect(product.getFields()["price"].federation.requires).toEqual("sku");
     });
 
     // TODO: provides can happen on an extended type as well, add a test case for this
@@ -809,7 +831,7 @@ type Product {
       expect(errors).toHaveLength(0);
 
       const review = schema.getType("Review") as GraphQLObjectType;
-      expect(review.getFields()["product"].provides).toEqual("sku");
+      expect(review.getFields()["product"].federation.provides).toEqual("sku");
     });
 
     it("adds @key information to types with the key directive", () => {
@@ -844,7 +866,7 @@ Array [
 `);
 
       const product = schema.getType("Product") as GraphQLObjectType;
-      expect(product.keys).toEqual(["sku", "upc"]);
+      expect(product.federation.keys).toEqual(["sku", "upc"]);
     });
   });
 });
