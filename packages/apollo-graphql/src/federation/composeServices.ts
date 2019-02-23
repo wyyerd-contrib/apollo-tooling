@@ -10,7 +10,8 @@ import {
   GraphQLError,
   GraphQLNamedType,
   isObjectType,
-  FieldDefinitionNode
+  FieldDefinitionNode,
+  InputValueDefinitionNode
 } from "graphql";
 import { validateSDL } from "graphql/validation/validate";
 import federationDirectives from "./directives";
@@ -18,7 +19,8 @@ import {
   findDirectivesOnTypeOrField,
   isStringValueNode,
   parseSelections,
-  isNotNullOrUndefined
+  isNotNullOrUndefined,
+  mapFieldNamesToServiceName
 } from "./utils";
 import { ServiceDefinition, ServiceName } from "./types";
 
@@ -135,12 +137,9 @@ export function composeServices(services: ServiceDefinition[]) {
         ) {
           if (!definition.fields) break;
 
-          // XXX fix types
-          // create map of { fieldName: serviceName } for each field.
-          const fields = (definition.fields as any[]).reduce((prev, next) => {
-            prev[next.name.value] = serviceName;
-            return prev;
-          }, Object.create(null));
+          const fields = mapFieldNamesToServiceName<
+            FieldDefinitionNode | InputValueDefinitionNode
+          >(definition.fields, serviceName);
 
           /**
            * If the type already exists in the serviceMap, add the extended fields. If not, create the object
@@ -160,10 +159,10 @@ export function composeServices(services: ServiceDefinition[]) {
         if (definition.kind === Kind.ENUM_TYPE_EXTENSION) {
           if (!definition.values) break;
 
-          const values = definition.values.reduce((prev, next) => {
-            prev[next.name.value] = serviceName;
-            return prev;
-          }, Object.create(null));
+          const values = mapFieldNamesToServiceName(
+            definition.values,
+            serviceName
+          );
 
           if (serviceMap[typeName]) {
             serviceMap[typeName].extensionFields = {
