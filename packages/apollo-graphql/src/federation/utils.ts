@@ -5,7 +5,8 @@ import {
   StringValueNode,
   parse,
   OperationDefinitionNode,
-  NameNode
+  NameNode,
+  DefinitionNode
 } from "graphql";
 import Maybe from "graphql/tsutils/Maybe";
 
@@ -39,6 +40,20 @@ export function findDirectivesOnTypeOrField(
         directive => directive.name.value === directiveName
       )
     : [];
+}
+
+// Remove all fields with an @external directive from a type definition or extension
+export function stripExternalFieldsFromTypeDefinition(node: DefinitionNode) {
+  if (
+    (node.kind === Kind.OBJECT_TYPE_DEFINITION ||
+      node.kind === Kind.OBJECT_TYPE_EXTENSION) &&
+    node.fields
+  ) {
+    // XXX casting out of ReadonlyArray
+    (node.fields as FieldDefinitionNode[]) = node.fields.filter(
+      field => findDirectivesOnTypeOrField(field, "external").length === 0
+    );
+  }
 }
 
 export function parseSelections(source: string) {

@@ -20,7 +20,8 @@ import {
   isStringValueNode,
   parseSelections,
   isNotNullOrUndefined,
-  mapFieldNamesToServiceName
+  mapFieldNamesToServiceName,
+  stripExternalFieldsFromTypeDefinition
 } from "./utils";
 import { ServiceDefinition, ServiceName } from "./types";
 
@@ -88,16 +89,9 @@ export function composeServices(services: ServiceDefinition[]) {
 
   for (const { typeDefs, name: serviceName } of services) {
     for (const definition of typeDefs.definitions) {
-      if (
-        (definition.kind === Kind.OBJECT_TYPE_DEFINITION ||
-          definition.kind === Kind.OBJECT_TYPE_EXTENSION) &&
-        definition.fields
-      ) {
-        // XXX casting out of ReadonlyArray
-        (definition.fields as FieldDefinitionNode[]) = definition.fields.filter(
-          field => findDirectivesOnTypeOrField(field, "external").length === 0
-        );
-      }
+      // Remove all fields from definition with an @external directive
+      stripExternalFieldsFromTypeDefinition(definition);
+
       if (isTypeDefinitionNode(definition)) {
         const typeName = definition.name.value;
 
