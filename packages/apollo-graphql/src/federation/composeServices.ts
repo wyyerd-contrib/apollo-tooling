@@ -3,7 +3,6 @@ import {
   GraphQLSchema,
   extendSchema,
   Kind,
-  DocumentNode,
   TypeDefinitionNode,
   TypeExtensionNode,
   isTypeDefinitionNode,
@@ -11,94 +10,17 @@ import {
   GraphQLError,
   GraphQLNamedType,
   isObjectType,
-  StringValueNode,
-  FieldDefinitionNode,
-  parse,
-  SelectionNode,
-  OperationDefinitionNode
+  FieldDefinitionNode
 } from "graphql";
-import { SDLValidationRule } from "graphql/validation/ValidationContext";
 import { validateSDL } from "graphql/validation/validate";
 import federationDirectives from "./directives";
-
-type ServiceName = string | null;
-
-export function isNotNullOrUndefined<T>(
-  value: T | null | undefined
-): value is T {
-  return value !== null && typeof value !== "undefined";
-}
-
-export function parseSelections(source: string) {
-  return (parse(`query { ${source} }`)
-    .definitions[0] as OperationDefinitionNode).selectionSet.selections;
-}
-
-interface FederationType {
-  serviceName?: ServiceName;
-  keys?: ReadonlyArray<SelectionNode>[];
-}
-
-interface FederationField {
-  serviceName?: ServiceName;
-  requires?: ReadonlyArray<SelectionNode>;
-  provides?: ReadonlyArray<SelectionNode>;
-}
-
-declare module "graphql/validation/validate" {
-  function validateSDL(
-    documentAST: DocumentNode,
-    schemaToExtend?: GraphQLSchema | null,
-    rules?: ReadonlyArray<SDLValidationRule>
-  ): GraphQLError[];
-}
-
-declare module "graphql/type/definition" {
-  interface GraphQLObjectType {
-    federation?: FederationType;
-  }
-
-  interface GraphQLEnumType {
-    federation?: FederationType;
-  }
-
-  interface GraphQLScalarType {
-    federation?: FederationType;
-  }
-
-  interface GraphQLInterfaceType {
-    federation?: FederationType;
-  }
-
-  interface GraphQLUnionType {
-    federation?: FederationType;
-  }
-
-  interface GraphQLInputObjectType {
-    federation?: FederationType;
-  }
-
-  interface GraphQLEnumValue {
-    federation?: FederationType;
-  }
-
-  interface GraphQLInputField {
-    federation?: FederationField;
-  }
-
-  interface GraphQLField<TSource, TContext> {
-    federation?: FederationField;
-  }
-}
-
-interface ServiceDefinition {
-  typeDefs: DocumentNode;
-  name: string;
-}
-
-function isStringValueNode(node: any): node is StringValueNode {
-  return node.kind === Kind.STRING;
-}
+import {
+  findDirectivesOnTypeOrField,
+  isStringValueNode,
+  parseSelections,
+  isNotNullOrUndefined
+} from "./utils";
+import { ServiceDefinition, ServiceName } from "./types";
 
 export function composeServices(services: ServiceDefinition[]) {
   let errors: GraphQLError[] | undefined = undefined;
@@ -171,14 +93,7 @@ export function composeServices(services: ServiceDefinition[]) {
       ) {
         // XXX casting out of ReadonlyArray
         (definition.fields as FieldDefinitionNode[]) = definition.fields.filter(
-          field => {
-            return !(
-              field.directives &&
-              field.directives.some(
-                directive => directive.name.value === "external"
-              )
-            );
-          }
+          field => findDirectivesOnTypeOrField(field, "external").length === 0
         );
       }
       if (isTypeDefinitionNode(definition)) {
@@ -339,12 +254,10 @@ export function composeServices(services: ServiceDefinition[]) {
     };
 
     if (isObjectType(namedType)) {
-      const keyDirectives =
-        namedType.astNode &&
-        namedType.astNode.directives &&
-        namedType.astNode.directives.filter(
-          directive => directive.name.value === "key"
-        );
+      const keyDirectives = findDirectivesOnTypeOrField(
+        namedType.astNode,
+        "key"
+      );
 
       namedType.federation = {
         ...namedType.federation,
@@ -361,12 +274,11 @@ export function composeServices(services: ServiceDefinition[]) {
       };
 
       for (const field of Object.values(namedType.getFields())) {
-        const providesDirective =
-          field.astNode &&
-          field.astNode.directives &&
-          field.astNode.directives.find(
-            directive => directive.name.value === "provides"
-          );
+        // TODO: validation error if rest.length > 0
+        const [providesDirective, ...rest] = findDirectivesOnTypeOrField(
+          field.astNode,
+          "provides"
+        );
 
         if (
           providesDirective &&
@@ -393,12 +305,11 @@ export function composeServices(services: ServiceDefinition[]) {
           serviceName: extendingServiceName
         };
 
-        const requiresDirective =
-          field.astNode &&
-          field.astNode.directives &&
-          field.astNode.directives.find(
-            directive => directive.name.value === "requires"
-          );
+        // TODO: validation error if rest.length > 0
+        const [requiresDirective, ...rest] = findDirectivesOnTypeOrField(
+          field.astNode,
+          "requires"
+        );
 
         if (
           requiresDirective &&
