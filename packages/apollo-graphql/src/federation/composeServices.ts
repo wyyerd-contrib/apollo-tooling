@@ -11,7 +11,8 @@ import {
   GraphQLNamedType,
   isObjectType,
   FieldDefinitionNode,
-  InputValueDefinitionNode
+  InputValueDefinitionNode,
+  DocumentNode
 } from "graphql";
 import { validateSDL } from "graphql/validation/validate";
 import federationDirectives from "./directives";
@@ -25,69 +26,51 @@ import {
 } from "./utils";
 import { ServiceDefinition, ServiceName } from "./types";
 
-export function composeServices(services: ServiceDefinition[]) {
-  let errors: GraphQLError[] | undefined = undefined;
-  // Map of all definitions to eventually be passed to extendSchema
-  const definitionsMap: {
-    [name: string]: TypeDefinitionNode[];
-  } = Object.create(null);
+// Map of all definitions to eventually be passed to extendSchema
+interface DefinitionsMap {
+  [name: string]: TypeDefinitionNode[];
+}
+// Map of all extensions to eventually be passed to extendSchema
+interface ExtensionsMap {
+  [name: string]: TypeExtensionNode[];
+}
 
-  // Map of all extensions to eventually be passed to extendSchema
-  const extensionsMap: {
-    [name: string]: TypeExtensionNode[];
-  } = Object.create(null);
+/**
+ * A map of base types to their owning service. Used by query planner to direct traffic.
+ * This contains the base type's "owner". Any fields that extend this type in another service
+ * are listed under "extensionFieldsToOwningServiceMap". extensionFieldsToOwningServiceMap are in the format { myField: my-service-name }
+ *
+ * Example resulting typeToServiceMap shape:
+ *
+ * const typeToServiceMap = {
+ *   Product: {
+ *     serviceName: "ProductService",
+ *     extensionFieldsToOwningServiceMap: {
+ *       reviews: "ReviewService", // Product.reviews comes from the ReviewService
+ *       dimensions: "ShippingService",
+ *       weight: "ShippingService"
+ *     }
+ *   }
+ * }
+ */
+interface TypeToServiceMap {
+  [typeName: string]: {
+    serviceName?: ServiceName;
+    extensionFieldsToOwningServiceMap: { [fieldName: string]: string };
+  };
+}
 
-  /**
-   * A map of base types to their owning service. Used by query planner to direct traffic.
-   * This contains the base type's "owner". Any fields that extend this type in another service
-   * are listed under "extensionFields". extensionFields are in the format { myField: my-service-name }
-   *
-   * Example services with resulting serviceMap shape
-   *
-   * ProductService:
-   * type Product {
-   *   sku: String!
-   *   color: String
-   * }
-   *
-   * ReviewService:
-   * extend type Product {
-   *   reviews: [Review!]!
-   * }
-   *
-   * ShippingService:
-   * extend type Product {
-   *   dimensions: [Dimensions!]
-   *   weight: Int
-   * }
-   *
-   * const serviceMap = {
-   *   Product: {
-   *     serviceName: "ProductService",
-   *     extensionFields: {
-   *       reviews: "ReviewService",
-   *       dimensions: "ShippingService",
-   *       weight: "ShippingService"
-   *     }
-   *   }
-   * }
-   */
+/**
+ * Loop over each service and process its typeDefs (`definitions`)
+ * - build up typeToServiceMap
+ * - push individual definitions onto either definitionsMap or extensionsMap
+ */
+export function buildMapsFromServiceList(serviceList: [ServiceDefinition]) {
+  const definitionsMap: DefinitionsMap = Object.create(null);
+  const extensionsMap: ExtensionsMap = Object.create(null);
+  const typeToServiceMap: TypeToServiceMap = Object.create(null);
 
-  /**
-   * XXX I want to rename this map to something that feels more directionally intutitive:
-   * typesMap
-   * typeToServiceMap
-   * typeWithExtensionsMap
-   * typeWithExtensionsToServiceMap
-   */
-  const serviceMap: {
-    [typeName: string]: {
-      serviceName?: ServiceName;
-      extensionFields: { [fieldName: string]: string };
-    };
-  } = Object.create(null);
-
-  for (const { typeDefs, name: serviceName } of services) {
+  for (const { typeDefs, name: serviceName } of serviceList) {
     for (const definition of typeDefs.definitions) {
       // Remove all fields from definition with an @external directive
       stripExternalFieldsFromTypeDefinition(definition);
@@ -96,16 +79,16 @@ export function composeServices(services: ServiceDefinition[]) {
         const typeName = definition.name.value;
 
         /**
-         * This type is a base definition (not an extension). If this type is already in the serviceMap, then
+         * This type is a base definition (not an extension). If this type is already in the typeToServiceMap, then
          * 1. It was declared by a previous service, but this newer one takes precedence, or...
          * 2. It was extended by a service before declared
          */
-        if (serviceMap[typeName]) {
-          serviceMap[typeName].serviceName = serviceName;
+        if (typeToServiceMap[typeName]) {
+          typeToServiceMap[typeName].serviceName = serviceName;
         } else {
-          serviceMap[typeName] = {
+          typeToServiceMap[typeName] = {
             serviceName,
-            extensionFields: Object.create(null)
+            extensionFieldsToOwningServiceMap: Object.create(null)
           };
         }
 
@@ -136,17 +119,19 @@ export function composeServices(services: ServiceDefinition[]) {
           >(definition.fields, serviceName);
 
           /**
-           * If the type already exists in the serviceMap, add the extended fields. If not, create the object
-           * and add the extensionFields, but don't add a serviceName. That will be added once that service
+           * If the type already exists in the typeToServiceMap, add the extended fields. If not, create the object
+           * and add the extensionFieldsToOwningServiceMap, but don't add a serviceName. That will be added once that service
            * definition is processed.
            */
-          if (serviceMap[typeName]) {
-            serviceMap[typeName].extensionFields = {
-              ...serviceMap[typeName].extensionFields,
+          if (typeToServiceMap[typeName]) {
+            typeToServiceMap[typeName].extensionFieldsToOwningServiceMap = {
+              ...typeToServiceMap[typeName].extensionFieldsToOwningServiceMap,
               ...fields
             };
           } else {
-            serviceMap[typeName] = { extensionFields: fields };
+            typeToServiceMap[typeName] = {
+              extensionFieldsToOwningServiceMap: fields
+            };
           }
         }
 
@@ -158,13 +143,15 @@ export function composeServices(services: ServiceDefinition[]) {
             serviceName
           );
 
-          if (serviceMap[typeName]) {
-            serviceMap[typeName].extensionFields = {
-              ...serviceMap[typeName].extensionFields,
+          if (typeToServiceMap[typeName]) {
+            typeToServiceMap[typeName].extensionFieldsToOwningServiceMap = {
+              ...typeToServiceMap[typeName].extensionFieldsToOwningServiceMap,
               ...values
             };
           } else {
-            serviceMap[typeName] = { extensionFields: values };
+            typeToServiceMap[typeName] = {
+              extensionFieldsToOwningServiceMap: values
+            };
           }
         }
 
@@ -197,55 +184,76 @@ export function composeServices(services: ServiceDefinition[]) {
         }
       ];
 
-      // ideally, the serviceName would be the first extending service, but there's not a reliable way
-      // to trace the extensionNode back to a service.
-      serviceMap[extensionTypeName].serviceName = null;
+      // ideally, the serviceName would be the first extending service, but there's not a reliable way to
+      // trace the extensionNode back to a service since each extension can be overwritten by other extensions
+      typeToServiceMap[extensionTypeName].serviceName = null;
     }
   }
 
-  // After mapping over each service/type we can build the new schema from nothing.
+  return { typeToServiceMap, definitionsMap, extensionsMap };
+}
+
+function buildSchemaFromDefinitionsAndExtensions({
+  definitionsMap,
+  extensionsMap
+}: {
+  definitionsMap: DefinitionsMap;
+  extensionsMap: ExtensionsMap;
+}) {
+  let errors: GraphQLError[] | undefined = undefined;
   let schema = new GraphQLSchema({
     query: undefined,
     directives: federationDirectives
   });
 
-  // Extend the blank schema with the base type definitions
-
-  const definitionsDocument = {
+  // Extend the blank schema with the base type definitions (as an AST node)
+  const definitionsDocument: DocumentNode = {
     kind: Kind.DOCUMENT,
     definitions: Object.values(definitionsMap).flat()
   };
 
   errors = validateSDL(definitionsDocument, schema);
-
   schema = extendSchema(schema, definitionsDocument, { assumeValidSDL: true });
 
-  const extensionsDocument = {
+  // Extend the schema with the extension definitions (as an AST node)
+  const extensionsDocument: DocumentNode = {
     kind: Kind.DOCUMENT,
     definitions: Object.values(extensionsMap).flat()
   };
 
   errors.push(...validateSDL(extensionsDocument, schema));
-
   schema = extendSchema(schema, extensionsDocument, { assumeValidSDL: true });
 
-  /**
-   * Extend each type in the GraphQLSchema we built with its `baseServiceName` (the owner of the base type)
-   * For each field in those types, we do the same: add the name of the service that extended the base type
-   * to add that field (the `extendingServiceName`)
-   */
+  return { schema, errors };
+}
+
+/**
+ * Using the typeToServiceMap, augment the passed in `schema` to add `federation` metadata to the types and
+ * fields
+ */
+function addFederationMetadataToSchemaNodes({
+  schema,
+  typeToServiceMap
+}: {
+  schema: GraphQLSchema;
+  typeToServiceMap: TypeToServiceMap;
+}) {
   for (const [
     typeName,
-    { serviceName: baseServiceName, extensionFields }
-  ] of Object.entries(serviceMap)) {
-    // A named type can be any one of:
-    // ObjectType, InputObjectType, EnumType, UnionType, InterfaceType, ScalarType
+    { serviceName: baseServiceName, extensionFieldsToOwningServiceMap }
+  ] of Object.entries(typeToServiceMap)) {
     const namedType = schema.getType(typeName) as GraphQLNamedType;
+    // Extend each type in the GraphQLSchema with the serviceName that owns it
     namedType.federation = {
       ...namedType.federation,
       serviceName: baseServiceName
     };
 
+    /**
+     * For object types, do 2 things
+     * 1. add metadata for all the @key directives from the object type itself
+     * 2. add metadata for all the @provides directives from its fields
+     */
     if (isObjectType(namedType)) {
       const keyDirectives = findDirectivesOnTypeOrField(
         namedType.astNode,
@@ -267,8 +275,7 @@ export function composeServices(services: ServiceDefinition[]) {
       };
 
       for (const field of Object.values(namedType.getFields())) {
-        // TODO: validation error if rest.length > 0
-        const [providesDirective, ...rest] = findDirectivesOnTypeOrField(
+        const [providesDirective] = findDirectivesOnTypeOrField(
           field.astNode,
           "provides"
         );
@@ -288,9 +295,15 @@ export function composeServices(services: ServiceDefinition[]) {
       }
     }
 
+    /**
+     * For extension fields, do 2 things:
+     * 1. Add serviceName metadata to all fields that belong to a type extension
+     * 2. add metadata from the @requires directive for each field extension
+     */
     for (const [fieldName, extendingServiceName] of Object.entries(
-      extensionFields
+      extensionFieldsToOwningServiceMap
     )) {
+      // TODO: Why don't we need to check for non-object types here
       if (isObjectType(namedType)) {
         const field = namedType.getFields()[fieldName];
         field.federation = {
@@ -298,8 +311,7 @@ export function composeServices(services: ServiceDefinition[]) {
           serviceName: extendingServiceName
         };
 
-        // TODO: validation error if rest.length > 0
-        const [requiresDirective, ...rest] = findDirectivesOnTypeOrField(
+        const [requiresDirective] = findDirectivesOnTypeOrField(
           field.astNode,
           "requires"
         );
@@ -317,34 +329,26 @@ export function composeServices(services: ServiceDefinition[]) {
           };
         }
       }
-
-      // We don't need these at all
-      // if (isInputObjectType(namedType) || isInterfaceType(namedType)) {
-      //   const field = namedType.getFields()[fieldName];
-      //   field.serviceName = extendingServiceName;
-      // }
-
-      // TODO: We want to throw warnings for this
-      // if (isEnumType(namedType)) {
-      //   const enumValue = namedType
-      //     .getValues()
-      //     .find(value => value.name === fieldName);
-
-      //   if (enumValue) {
-      //     enumValue.serviceName = extendingServiceName;
-      //   }
-      // }
-
-      // if (isUnionType(namedType)) {
-      //   // TODO
-      //   // can you extend a union type?
-      // }
-
-      // if (isScalarType(namedType)) {
-      //   // TODO
-      // }
     }
   }
+}
+
+export function composeServices(services: ServiceDefinition[]) {
+  const {
+    typeToServiceMap,
+    definitionsMap,
+    extensionsMap
+  } = buildMapsFromServiceList(services);
+
+  const { schema, errors } = buildSchemaFromDefinitionsAndExtensions({
+    definitionsMap,
+    extensionsMap
+  });
+
+  addFederationMetadataToSchemaNodes({
+    schema,
+    typeToServiceMap
+  });
 
   /**
    * At the end, we're left with a full GraphQLSchema that _also_ has `serviceName` fields for every type,
