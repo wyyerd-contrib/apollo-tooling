@@ -63,7 +63,9 @@ export default class ServicePush extends ClientCommand {
         title: "Pushing client information to Engine",
         task: async ctx => {
           if (!config.name) {
-            throw new Error("No service found to link to Engine");
+            throw new Error(
+              "No service found to link to Engine. Engine is required for this command."
+            );
           }
           const operations = Object.values(
             this.project.mergedOperationsAndFragmentsForService
