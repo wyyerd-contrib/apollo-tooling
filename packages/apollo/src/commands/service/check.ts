@@ -141,14 +141,13 @@ export default class ServiceCheck extends ProjectCommand {
       ({ config, flags, project }) => [
         {
           title: "Checking service for changes",
-          task: async (ctx: TasksOutput) => {
+          task: async (ctx: Readonly<TasksOutput>) => {
             if (!config.name) {
               throw new Error("No service found to link to Engine");
             }
 
             const tag = flags.tag || config.tag || "current";
             const schema = await project.resolveSchema({ tag });
-            ctx.gitContext = await gitInfo(this.log);
 
             const historicParameters = validateHistoricParams({
               validationPeriod: flags.validationPeriod,
@@ -156,20 +155,24 @@ export default class ServiceCheck extends ProjectCommand {
               queryCountThresholdPercentage: flags.queryCountThresholdPercentage
             });
 
-            ctx.checkSchemaResult = await project.engine.checkSchema({
-              id: config.name,
-              // @ts-ignore
-              // XXX Looks like TS should be generating ReadonlyArrays instead
-              schema: introspectionFromSchema(schema).__schema,
-              tag: flags.tag,
-              gitContext: ctx.gitContext,
-              frontend: flags.frontend || config.engine.frontend,
-              ...(historicParameters && { historicParameters })
-            });
+            const newContext: typeof ctx = {
+              checkSchemaResult: await project.engine.checkSchema({
+                id: config.name,
+                // @ts-ignore
+                // XXX Looks like TS should be generating ReadonlyArrays instead
+                schema: introspectionFromSchema(schema).__schema,
+                tag: flags.tag,
+                gitContext: ctx.gitContext,
+                frontend: flags.frontend || config.engine.frontend,
+                ...(historicParameters && { historicParameters })
+              }),
+              config,
+              gitContext: await gitInfo(this.log),
+              shouldOutputJson: !!flags.json,
+              shouldOutputMarkdown: !!flags.markdown
+            };
 
-            ctx.shouldOutputJson = !!flags.json;
-            ctx.shouldOutputMarkdown = !!flags.markdown;
-            ctx.config = config;
+            Object.assign(ctx, newContext);
           }
         }
       ],
