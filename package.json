@@ -21,7 +21,7 @@
     "compile:clean": "tsc --build tsconfig.json --clean",
     "watch": "tsc --build tsconfig.json --watch",
     "test": "jest",
-    "test:ci": "npm run test -- --ci --maxWorkers=2 --runInBand",
+    "test:ci": "npm run test -- --ci --runInBand",
     "test:ci:debug": "DEBUG=* node --inspect-brk=9001 node_modules/.bin/jest --runInBand",
     "test:vscode": "lerna run test --scope=vscode-apollo",
     "circle": "npm run test:ci",
